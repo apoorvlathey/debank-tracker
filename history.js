@@ -543,11 +543,18 @@ function updateChart() {
       const hideStatus = result.hideStatus || false;
       applyHideStatus(hideStatus);
     });
+
+    // Update refresh count
+    document.getElementById(
+      "refreshCount"
+    ).textContent = `Refreshed: ${data.length} times`;
   } else {
     // Reset stats if no data
     updateStats([]);
     document.getElementById("lastUpdated").textContent =
       "Last updated: No data yet";
+    // Update refresh count
+    document.getElementById("refreshCount").textContent = `Refreshed: 0 times`;
     if (chart) {
       chart.destroy();
       chart = null;
@@ -618,6 +625,12 @@ function updateBundleSelect(portfolioHistory) {
       updateChart();
     });
 
+    // Update refresh count
+    const bundleId = bundleSelect.value;
+    document.getElementById(
+      "refreshCount"
+    ).textContent = `Refreshed: ${portfolioHistory[bundleId].length} times`;
+
     // Enable controls if we have data
     bundleSelect.disabled = false;
     timeScale.disabled = false;
@@ -642,6 +655,8 @@ function updateBundleSelect(portfolioHistory) {
     option.value = "";
     option.textContent = "No data available";
     bundleSelect.appendChild(option);
+
+    document.getElementById("refreshCount").textContent = "Refreshed: 0 times";
   }
 }
 

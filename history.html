@@ -300,22 +300,32 @@
       <button class="clear-btn" id="clearBtn">Clear Data</button>
     </div>
 
-    <div style="display: flex; align-items: center; margin-bottom: 16px">
-      <div id="lastUpdated" style="color: var(--text-secondary)">
-        Last updated:
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      "
+    >
+      <div style="display: flex; align-items: center">
+        <div id="lastUpdated" style="color: var(--text-secondary)">
+          Last updated:
+        </div>
+        <a
+          id="lastUpdatedLink"
+          href="#"
+          target="_blank"
+          style="
+            color: var(--text-primary);
+            text-decoration: underline;
+            margin-left: 8px;
+          "
+        >
+          (View bundle on Debank to snapshot the latest balance)
+        </a>
       </div>
-      <a
-        id="lastUpdatedLink"
-        href="#"
-        target="_blank"
-        style="
-          color: var(--text-primary);
-          text-decoration: underline;
-          margin-left: 8px;
-        "
-      >
-        (View bundle on Debank to snapshot the latest balance)
-      </a>
+      <div id="refreshCount" style="font-weight: bold">Refreshed: x times</div>
     </div>
 
     <div class="stats-container">
