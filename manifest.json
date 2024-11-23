@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Debank Historic Tracker",
+  "version": "1.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://debank.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://debank.com/bundles/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
