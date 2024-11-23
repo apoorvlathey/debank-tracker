@@ -5,6 +5,7 @@ let isDraggingYAxis = false;
 let dragStartY = 0;
 let initialZoom = null;
 let initialBounds = null;
+let lastUpdatedInterval = null;
 
 // Helper Functions
 // Aggregate data based on time scale
@@ -450,12 +451,26 @@ function updateLastUpdatedTime(data) {
   ).textContent = `Last updated: ${timeElapsed} ago`;
 }
 
+// Function to start the auto-update interval
+function startLastUpdatedInterval() {
+  // Clear any existing interval first
+  if (lastUpdatedInterval) {
+    clearInterval(lastUpdatedInterval);
+  }
+
+  // Set up new interval
+  lastUpdatedInterval = setInterval(() => {
+    const bundleId = document.getElementById("bundleSelect").value;
+    const data = currentData[bundleId];
+    updateLastUpdatedTime(data);
+  }, 29000); // Update 29 secs (29000 milliseconds)
+}
+
 function updateLastUpdatedLink(bundleId) {
   const linkElement = document.getElementById("lastUpdatedLink");
   linkElement.href = `https://debank.com/bundles/${bundleId}/accounts`;
 }
 
-// Modify updateStatsForVisibleRange to call updateLastUpdatedTime
 function updateStatsForVisibleRange() {
   if (!chart) return;
 
@@ -491,7 +506,6 @@ function updateStatsForVisibleRange() {
   updateLastUpdatedLink(bundleId);
 }
 
-// Modify updateChart to call updateLastUpdatedTime
 function updateChart() {
   const bundleId = document.getElementById("bundleSelect").value;
   const timeScale = document.getElementById("timeScale").value;
@@ -504,6 +518,7 @@ function updateChart() {
     createChart(data, timeScale);
     updateLastUpdatedTime(data);
     updateLastUpdatedLink(bundleId);
+    startLastUpdatedInterval(); // Start the interval when chart is updated
   } else {
     // Reset stats if no data
     updateStats([]);
@@ -512,6 +527,11 @@ function updateChart() {
     if (chart) {
       chart.destroy();
       chart = null;
+    }
+    // Clear the interval if there's no data
+    if (lastUpdatedInterval) {
+      clearInterval(lastUpdatedInterval);
+      lastUpdatedInterval = null;
     }
   }
 }
@@ -616,6 +636,12 @@ function downloadData() {
 }
 
 function clearData() {
+  // Clear the interval when data is cleared
+  if (lastUpdatedInterval) {
+    clearInterval(lastUpdatedInterval);
+    lastUpdatedInterval = null;
+  }
+
   const bundleId = document.getElementById("bundleSelect").value;
   chrome.storage.local.get(["portfolioHistory"], (result) => {
     const portfolioHistory = result.portfolioHistory || {};
@@ -720,6 +746,12 @@ document.getElementById("cancelBtn").addEventListener("click", () => {
 chrome.storage.local.get(["portfolioHistory"], (result) => {
   const portfolioHistory = result.portfolioHistory || {};
   updateBundleSelect(portfolioHistory);
+
+  // Start the interval if there's data
+  const bundleId = document.getElementById("bundleSelect").value;
+  if (portfolioHistory[bundleId]) {
+    startLastUpdatedInterval();
+  }
 });
 
 // Listen for changes for new entry to the storage and update the chart
@@ -729,5 +761,11 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     const newPortfolioHistory = changes.portfolioHistory.newValue || {};
     // Update the bundle select and chart with new data
     updateBundleSelect(newPortfolioHistory);
+
+    // Restart the interval with new data
+    const bundleId = document.getElementById("bundleSelect").value;
+    if (newPortfolioHistory[bundleId]) {
+      startLastUpdatedInterval();
+    }
   }
 });
