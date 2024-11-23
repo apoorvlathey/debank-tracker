@@ -101,15 +101,28 @@ function createChart(data, timeScale) {
 
   // Calculate initial bounds with padding
   const values = aggregatedData.map((item) => item.value);
-  const minValue = Math.floor(Math.min(...values));
-  const maxValue = Math.ceil(Math.max(...values));
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
   const valueRange = maxValue - minValue;
-  const paddedMin = Math.floor(minValue - valueRange * 0.05);
-  const paddedMax = Math.ceil(maxValue + valueRange * 0.05);
+  const paddingFactor = 0.05;
 
+  // Handle edge case where all values are the same
+  let yMin, yMax;
+  if (valueRange === 0) {
+    // If all values are the same, create artificial range
+    const baseValue = minValue;
+    const artificialRange = Math.abs(baseValue) * 0.1 || 1; // Use 10% of the value or 1 if value is 0
+    yMin = baseValue - artificialRange;
+    yMax = baseValue + artificialRange;
+  } else {
+    yMin = minValue - valueRange * paddingFactor;
+    yMax = maxValue + valueRange * paddingFactor;
+  }
+
+  // Store the initial bounds globally
   initialBounds = {
-    min: paddedMin,
-    max: paddedMax,
+    min: Math.floor(yMin),
+    max: Math.ceil(yMax),
   };
 
   chart = new Chart(ctx, {
@@ -124,7 +137,7 @@ function createChart(data, timeScale) {
           data: aggregatedData.map((item) => item.value),
           borderColor: "#4CAF50",
           tension: 0.1,
-          pointRadius: aggregatedData.length === 1 ? 5 : 0, // Ensure single point is visible
+          pointRadius: aggregatedData.length <= 2 ? 5 : 0, // Show points when there are 2 or fewer data points
           pointHitRadius: 10,
           borderWidth: 2,
         },
@@ -150,8 +163,8 @@ function createChart(data, timeScale) {
         },
         y: {
           beginAtZero: false,
-          suggestedMin: paddedMin,
-          suggestedMax: paddedMax,
+          min: initialBounds.min, // Use min instead of suggestedMin for more control
+          max: initialBounds.max, // Use max instead of suggestedMax for more control
           ticks: {
             callback: (value) => "$" + Math.round(value).toLocaleString(),
             color: "#a0a0a0",
@@ -220,11 +233,9 @@ function createChart(data, timeScale) {
               ];
             },
             labelTextColor: (tooltipItem) => {
-              // If this is the first line (Value), return white
               if (tooltipItem.dataIndex === 0) {
                 return "#FFFFFF";
               }
-              // For the second line (Change), calculate the change and return appropriate color
               const currentValue = tooltipItem.parsed.y;
               const startValue = tooltipItem.dataset.data[0];
               const dollarChange = currentValue - startValue;
@@ -267,7 +278,7 @@ function createChart(data, timeScale) {
         },
       },
       animation: {
-        duration: 0, // Set to 0 for better performance during zooming/panning
+        duration: 0,
       },
       hover: {
         mode: "index",
@@ -279,45 +290,6 @@ function createChart(data, timeScale) {
         },
       },
     },
-    plugins: [
-      {
-        id: "verticalLine",
-        afterDraw: (chart, args, options) => {
-          const { ctx } = chart;
-          const { left, right, top, bottom } = chart.chartArea;
-          const tooltip = chart.tooltip;
-
-          if (tooltip && tooltip._active && tooltip._active.length) {
-            const activePoint = tooltip._active[0];
-            const x = activePoint.element.x;
-
-            // Save the current canvas state
-            ctx.save();
-
-            // Draw the vertical line
-            ctx.beginPath();
-            ctx.moveTo(x, top);
-            ctx.lineTo(x, bottom);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; // Made line more visible
-            ctx.setLineDash([4, 4]); // Dashed line effect
-            ctx.stroke();
-
-            // Add a subtle gradient overlay
-            const gradient = ctx.createLinearGradient(x - 1, top, x + 1, top);
-            gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
-            gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.05)");
-            gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(x - 1, top, 2, bottom - top);
-
-            // Restore the canvas state
-            ctx.restore();
-          }
-        },
-      },
-    ],
   });
 
   // Track mouse position and update cursor
@@ -597,20 +569,29 @@ function clearData() {
 
 function resetZoom() {
   if (chart && initialBounds) {
-    // Reset to initial bounds
+    // Reset the scales to their original state
+    chart.resetZoom();
+
+    // Reset to initial bounds for Y axis
     chart.scales.y.options.min = initialBounds.min;
     chart.scales.y.options.max = initialBounds.max;
 
-    // Clear any zoom-specific options
-    chart.scales.y.options.suggestedMin = initialBounds.min;
-    chart.scales.y.options.suggestedMax = initialBounds.max;
-
-    // Reset zoom state
+    // Reset the pan and zoom state
     isDraggingYAxis = false;
     initialZoom = null;
 
-    // Update the chart
-    chart.update();
+    // Instead of using updateStatsForVisibleRange, use the original data
+    const bundleId = document.getElementById("bundleSelect").value;
+    const data = currentData[bundleId];
+    if (data && data.length > 0) {
+      // Use the aggregated data that matches current timeScale
+      const timeScale = document.getElementById("timeScale").value;
+      const aggregatedData = aggregateData(data, timeScale);
+      updateStats(aggregatedData);
+    }
+
+    // Update the chart with animation disabled
+    chart.update("none");
   }
 }
 
