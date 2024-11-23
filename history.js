@@ -548,12 +548,13 @@ function updateBundleSelect(portfolioHistory) {
 }
 
 function downloadData() {
+  const bundleId = document.getElementById("bundleSelect").value;
   const dataStr = JSON.stringify(currentData, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "portfolio-history.json";
+  a.download = `bundle-history-${bundleId}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -561,28 +562,36 @@ function downloadData() {
 }
 
 function clearData() {
-  chrome.storage.local.set({ portfolioHistory: {} }, () => {
-    currentData = {};
-    updateBundleSelect({});
+  const bundleId = document.getElementById("bundleSelect").value;
+  chrome.storage.local.get(["portfolioHistory"], (result) => {
+    const portfolioHistory = result.portfolioHistory || {};
+    delete portfolioHistory[bundleId];
+    chrome.storage.local.set({ portfolioHistory }, () => {
+      currentData = portfolioHistory;
+      updateBundleSelect(portfolioHistory);
 
-    // Clear the existing chart
-    if (chart) {
-      chart.destroy();
-      chart = null;
-    }
+      // Clear the existing chart
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
 
-    // Clear the chart canvas
-    const ctx = document.getElementById("valueChart");
-    ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height);
+      // Clear the chart canvas
+      const ctx = document.getElementById("valueChart");
+      ctx.getContext("2d").clearRect(0, 0, ctx.width, ctx.height);
 
-    // Hide or disable controls since there's no data
-    document.getElementById("timeScale").disabled = true;
-    document.getElementById("downloadBtn").disabled = true;
-    document.getElementById("bundleSelect").disabled = true;
-    document.getElementById("resetZoom").disabled = true;
+      // reset stats
+      updateStats([]);
 
-    // Close the modal
-    document.getElementById("confirmModal").style.display = "none";
+      // Hide or disable controls since there's no data
+      document.getElementById("timeScale").disabled = true;
+      document.getElementById("downloadBtn").disabled = true;
+      document.getElementById("bundleSelect").disabled = true;
+      document.getElementById("resetZoom").disabled = true;
+
+      // Close the modal
+      document.getElementById("confirmModal").style.display = "none";
+    });
   });
 }
 
@@ -635,10 +644,56 @@ document.getElementById("clearBtn").addEventListener("click", () => {
 
 document.getElementById("resetZoom").addEventListener("click", resetZoom);
 
-document.getElementById("downloadAndClearBtn").addEventListener("click", () => {
-  downloadData();
-  clearData();
-});
+document
+  .getElementById("downloadAndClearBtn")
+  .addEventListener("click", async () => {
+    const bundleId = document.getElementById("bundleSelect").value;
+    const dataStr = JSON.stringify(currentData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    try {
+      if (window.showSaveFilePicker) {
+        // Modern approach
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: `bundle-history-${bundleId}.json`,
+          types: [
+            {
+              description: "JSON File",
+              accept: {
+                "application/json": [".json"],
+              },
+            },
+          ],
+        });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        clearData();
+      } else {
+        // Fallback approach
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bundle-history-${bundleId}.json`;
+
+        // Create a confirmation dialog
+        if (
+          confirm(
+            "This bundle's data will be cleared. Click OK to proceed with download, or Cancel to abort."
+          )
+        ) {
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          clearData();
+        }
+      }
+    } catch (err) {
+      console.log("Save was cancelled or failed:", err);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  });
 
 document.getElementById("clearOnlyBtn").addEventListener("click", clearData);
 
