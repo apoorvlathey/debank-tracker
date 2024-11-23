@@ -334,5 +334,17 @@
     </footer>
 
     <script src="history.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const timeScale = document.getElementById("timeScale");
+        const timeFrame = timeScale.options[timeScale.selectedIndex].text;
+        document.querySelector(
+          ".stat-label:nth-child(2)"
+        ).innerText = `Change ($) [${timeFrame}]`;
+        document.querySelector(
+          ".stat-label:nth-child(3)"
+        ).innerText = `Change (%) [${timeFrame}]`;
+      });
+    </script>
   </body>
 </html>

@@ -3,61 +3,7 @@ let currentData = {};
 let isDraggingYAxis = false;
 let dragStartY = 0;
 let initialZoom = null;
-let initialBounds = null; // Store initial bounds for reset
-
-function calculateChanges(data) {
-  if (!data || data.length < 2)
-    return { dollarChange: 0, percentChange: 0, currentValue: 0 };
-
-  const currentValue = data[data.length - 1].value;
-  const initialValue = data[0].value;
-  const dollarChange = currentValue - initialValue;
-  const percentChange = ((currentValue - initialValue) / initialValue) * 100;
-
-  return {
-    dollarChange,
-    percentChange,
-    currentValue,
-  };
-}
-
-function updateStats(data) {
-  const stats = calculateChanges(data);
-
-  // Update current value
-  const currentValueEl = document.getElementById("currentValue");
-  currentValueEl.textContent = formatCurrency(stats.currentValue);
-
-  // Update dollar change
-  const dollarChangeEl = document.getElementById("dollarChange");
-  dollarChangeEl.textContent = formatCurrency(stats.dollarChange);
-  dollarChangeEl.className = "stat-value " + getChangeClass(stats.dollarChange);
-
-  // Update percent change
-  const percentChangeEl = document.getElementById("percentChange");
-  percentChangeEl.textContent = formatPercentage(stats.percentChange);
-  percentChangeEl.className =
-    "stat-value " + getChangeClass(stats.percentChange);
-}
-
-function formatCurrency(value) {
-  const prefix = value >= 0 ? "$" : "-$";
-  return `${prefix}${Math.abs(value).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatPercentage(value) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
-
-function getChangeClass(value) {
-  if (value > 0) return "positive-change";
-  if (value < 0) return "negative-change";
-  return "no-change";
-}
+let initialBounds = null;
 
 // Helper function to aggregate data based on time scale
 function aggregateData(data, timeScale) {
@@ -146,7 +92,7 @@ function createChart(data, timeScale) {
   const canvas = document.getElementById("valueChart");
   const aggregatedData = aggregateData(data, timeScale);
 
-  // Update stats before creating the chart
+  // Update stats
   updateStats(aggregatedData);
 
   if (chart) {
@@ -161,7 +107,6 @@ function createChart(data, timeScale) {
   const paddedMin = Math.floor(minValue - valueRange * 0.05);
   const paddedMax = Math.ceil(maxValue + valueRange * 0.05);
 
-  // Store initial bounds for reset
   initialBounds = {
     min: paddedMin,
     max: paddedMax,
@@ -179,65 +124,195 @@ function createChart(data, timeScale) {
           data: aggregatedData.map((item) => item.value),
           borderColor: "#4CAF50",
           tension: 0.1,
+          pointRadius: 0,
+          pointHitRadius: 10,
+          borderWidth: 2,
         },
       ],
     },
     options: {
       responsive: true,
+      interaction: {
+        intersect: false,
+        mode: "index",
+      },
       scales: {
+        x: {
+          grid: {
+            display: false,
+          },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 8,
+            color: "#a0a0a0",
+          },
+        },
         y: {
           beginAtZero: false,
           suggestedMin: paddedMin,
           suggestedMax: paddedMax,
           ticks: {
             callback: (value) => "$" + Math.round(value).toLocaleString(),
+            color: "#a0a0a0",
           },
-          afterDataLimits: (scale) => {
-            scale.min = Math.floor(scale.min);
-            scale.max = Math.ceil(scale.max);
+          grid: {
+            color: "rgba(255, 255, 255, 0.05)",
           },
         },
       },
       plugins: {
+        legend: {
+          display: false,
+        },
         tooltip: {
+          backgroundColor: "rgba(20, 20, 20, 0.95)",
+          padding: {
+            top: 12,
+            right: 16,
+            bottom: 12,
+            left: 16,
+          },
+          cornerRadius: 8,
+          bodySpacing: 8,
+          displayColors: false,
+          titleFont: {
+            size: 13,
+            weight: "500",
+            family:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          },
+          bodyFont: {
+            size: 14,
+            weight: "600",
+            family:
+              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          },
+          borderColor: "rgba(255, 255, 255, 0.1)",
+          borderWidth: 1,
           callbacks: {
+            title: (tooltipItems) => {
+              return formatDate(
+                aggregatedData[tooltipItems[0].dataIndex].timestamp,
+                timeScale
+              );
+            },
             label: (context) => {
-              const dataIndex = context.dataIndex;
               const currentValue = context.parsed.y;
-              const initialValue = context.dataset.data[0];
-              const dollarChange = currentValue - initialValue;
+              const startValue = context.dataset.data[0];
+              const dollarChange = currentValue - startValue;
               const percentChange =
-                ((currentValue - initialValue) / initialValue) * 100;
+                ((currentValue - startValue) / startValue) * 100;
 
               return [
-                `Value: ${formatCurrency(currentValue)}`,
-                `Change: ${formatCurrency(dollarChange)} (${formatPercentage(
-                  percentChange
-                )})`,
+                "Value: " + formatCurrency(currentValue),
+                "Change: " +
+                  formatCurrency(dollarChange) +
+                  " (" +
+                  formatPercentage(percentChange) +
+                  ")",
               ];
             },
+            labelTextColor: (tooltipItem) => {
+              // If this is the first line (Value), return white
+              if (tooltipItem.dataIndex === 0) {
+                return "#FFFFFF";
+              }
+              // For the second line (Change), calculate the change and return appropriate color
+              const currentValue = tooltipItem.parsed.y;
+              const startValue = tooltipItem.dataset.data[0];
+              const dollarChange = currentValue - startValue;
+              return dollarChange >= 0 ? "#4CAF50" : "#FF4444";
+            },
+            afterLabel: (context) => "",
           },
+          titleMarginBottom: 10,
+          caretSize: 8,
+          caretPadding: 12,
+          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
         },
         zoom: {
           pan: {
             enabled: true,
-            mode: "y",
+            mode: "x",
+            modifierKey: null,
           },
           zoom: {
             wheel: {
-              enabled: false,
+              enabled: true,
+              modifierKey: "ctrl",
             },
             pinch: {
               enabled: true,
             },
-            mode: "y",
+            mode: "xy",
+            onZoomComplete: () => updateStatsForVisibleRange(),
+          },
+          limits: {
+            x: {
+              min: "original",
+              max: "original",
+              minRange: 1000 * 60 * 60 * 24, // Minimum 1 day range
+            },
+            y: {
+              min: "original",
+              max: "original",
+            },
           },
         },
-        legend: {
-          onClick: null, // This disables the click handler
+      },
+      animation: {
+        duration: 0, // Set to 0 for better performance during zooming/panning
+      },
+      hover: {
+        mode: "index",
+        intersect: false,
+      },
+      elements: {
+        line: {
+          tension: 0.1,
         },
       },
     },
+    plugins: [
+      {
+        id: "verticalLine",
+        afterDraw: (chart, args, options) => {
+          const { ctx } = chart;
+          const { left, right, top, bottom } = chart.chartArea;
+          const tooltip = chart.tooltip;
+
+          if (tooltip && tooltip._active && tooltip._active.length) {
+            const activePoint = tooltip._active[0];
+            const x = activePoint.element.x;
+
+            // Save the current canvas state
+            ctx.save();
+
+            // Draw the vertical line
+            ctx.beginPath();
+            ctx.moveTo(x, top);
+            ctx.lineTo(x, bottom);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; // Made line more visible
+            ctx.setLineDash([4, 4]); // Dashed line effect
+            ctx.stroke();
+
+            // Add a subtle gradient overlay
+            const gradient = ctx.createLinearGradient(x - 1, top, x + 1, top);
+            gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+            gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.05)");
+            gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x - 1, top, 2, bottom - top);
+
+            // Restore the canvas state
+            ctx.restore();
+          }
+        },
+      },
+    ],
   });
 
   // Track mouse position and update cursor
@@ -245,9 +320,8 @@ function createChart(data, timeScale) {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const chartArea = chart.chartArea;
-    const yAxis = chart.scales.y;
 
-    // Check if mouse is over the y-axis area (including labels)
+    // Change cursor style when over the y-axis area
     if (x <= chartArea.left) {
       canvas.style.cursor = "ns-resize";
     } else {
@@ -261,11 +335,8 @@ function createChart(data, timeScale) {
       const newRange = initialZoom.range * zoomFactor;
       const centerValue = (initialZoom.max + initialZoom.min) / 2;
 
-      const newMin = Math.floor(centerValue - newRange / 2);
-      const newMax = Math.ceil(centerValue + newRange / 2);
-
-      chart.scales.y.options.min = newMin;
-      chart.scales.y.options.max = newMax;
+      chart.scales.y.options.min = Math.floor(centerValue - newRange / 2);
+      chart.scales.y.options.max = Math.ceil(centerValue + newRange / 2);
       chart.update("none");
     }
   });
@@ -275,30 +346,94 @@ function createChart(data, timeScale) {
     const x = e.clientX - rect.left;
     const chartArea = chart.chartArea;
 
-    // Check if mouse is over the y-axis area (including labels)
     if (x <= chartArea.left) {
       isDraggingYAxis = true;
       dragStartY = e.clientY;
       initialZoom = {
-        min: Math.floor(chart.scales.y.min),
-        max: Math.ceil(chart.scales.y.max),
-        range: Math.ceil(chart.scales.y.max) - Math.floor(chart.scales.y.min),
+        min: chart.scales.y.min,
+        max: chart.scales.y.max,
+        range: chart.scales.y.max - chart.scales.y.min,
       };
-      canvas.style.cursor = "ns-resize";
     }
   });
 
   window.addEventListener("mouseup", () => {
-    if (isDraggingYAxis) {
-      isDraggingYAxis = false;
-      initialZoom = null;
-      canvas.style.cursor = "default";
-    }
+    isDraggingYAxis = false;
+    initialZoom = null;
+    canvas.style.cursor = "default";
   });
 
   canvas.addEventListener("mouseleave", () => {
     canvas.style.cursor = "default";
   });
+
+  // Update stats when panning/zooming
+  chart.options.plugins.zoom.onZoomComplete = () =>
+    updateStatsForVisibleRange();
+  chart.options.plugins.zoom.onPanComplete = () => updateStatsForVisibleRange();
+}
+
+function calculateChanges(data) {
+  if (!data || data.length < 2)
+    return { dollarChange: 0, percentChange: 0, currentValue: 0 };
+
+  const currentValue = data[data.length - 1].value;
+  const initialValue = data[0].value;
+  const dollarChange = currentValue - initialValue;
+  const percentChange = ((currentValue - initialValue) / initialValue) * 100;
+
+  return {
+    dollarChange,
+    percentChange,
+    currentValue,
+  };
+}
+
+function formatCurrency(value) {
+  const prefix = value >= 0 ? "$" : "-$";
+  return `${prefix}${Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatPercentage(value) {
+  const prefix = value >= 0 ? "+" : "";
+  return `${prefix}${value.toFixed(2)}%`;
+}
+
+function getChangeClass(value) {
+  if (value > 0) return "positive-change";
+  if (value < 0) return "negative-change";
+  return "no-change";
+}
+
+function updateStats(data) {
+  const stats = calculateChanges(data);
+
+  document.getElementById("currentValue").textContent = formatCurrency(
+    stats.currentValue
+  );
+
+  const dollarChangeEl = document.getElementById("dollarChange");
+  dollarChangeEl.textContent = formatCurrency(stats.dollarChange);
+  dollarChangeEl.className = "stat-value " + getChangeClass(stats.dollarChange);
+
+  const percentChangeEl = document.getElementById("percentChange");
+  percentChangeEl.textContent = formatPercentage(stats.percentChange);
+  percentChangeEl.className =
+    "stat-value " + getChangeClass(stats.percentChange);
+}
+
+function updateStatsForVisibleRange() {
+  if (!chart) return;
+
+  const { min: start, max: end } = chart.scales.x;
+  const visibleData = currentData[
+    document.getElementById("bundleSelect").value
+  ].filter((item) => item.timestamp >= start && item.timestamp <= end);
+
+  updateStats(visibleData);
 }
 
 function updateBundleSelect(portfolioHistory) {
