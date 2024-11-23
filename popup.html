@@ -4,7 +4,7 @@
     <title>Debank Historic Tracker</title>
     <style>
       body {
-        width: 300px;
+        width: 350px;
         padding: 16px;
         background-color: #1a1a1a;
         color: #e0e0e0;
@@ -46,6 +46,88 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         background: linear-gradient(135deg, #35ab65, #238049);
       }
+
+      .toggle-button {
+        display: block;
+        margin-top: 16px;
+        padding: 10px;
+        background: linear-gradient(135deg, #2f9959, #1e7040);
+        color: white;
+        text-decoration: none;
+        text-align: center;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+      }
+
+      .toggle-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, #35ab65, #238049);
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+        /* Remove margin-top to align vertically */
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #2f9959;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(14px);
+      }
+
+      .switch-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 16px;
+        gap: 10px; /* Add gap to ensure proper spacing */
+      }
+
+      .switch-label {
+        margin-right: 10px;
+        color: #fff;
+        font-size: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -61,6 +143,16 @@
       and plots a graph...
     </p>
     <a href="history.html" class="view-history" target="_blank">View History</a>
+    <div class="switch-container">
+      <span class="switch-label"
+        >Auto refretch bundles page every 30 mins <br />
+        (if page open)</span
+      >
+      <label class="switch">
+        <input type="checkbox" />
+        <span class="slider"></span>
+      </label>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
