@@ -92,7 +92,7 @@ function createChart(data, timeScale) {
   const canvas = document.getElementById("valueChart");
   const aggregatedData = aggregateData(data, timeScale);
 
-  // Update stats
+  // Update stats once when creating chart
   updateStats(aggregatedData);
 
   if (chart) {
@@ -246,7 +246,6 @@ function createChart(data, timeScale) {
               enabled: true,
             },
             mode: "xy",
-            onZoomComplete: () => updateStatsForVisibleRange(),
           },
           limits: {
             x: {
@@ -366,18 +365,15 @@ function createChart(data, timeScale) {
   canvas.addEventListener("mouseleave", () => {
     canvas.style.cursor = "default";
   });
-
-  // Update stats when panning/zooming
-  chart.options.plugins.zoom.onZoomComplete = () =>
-    updateStatsForVisibleRange();
-  chart.options.plugins.zoom.onPanComplete = () => updateStatsForVisibleRange();
 }
 
 function calculateChanges(data) {
-  if (!data || data.length < 2)
+  if (!data || data.length < 2) {
     return { dollarChange: 0, percentChange: 0, currentValue: 0 };
+  }
 
   const currentValue = data[data.length - 1].value;
+  // Always use the first data point in the entire dataset for reference
   const initialValue = data[0].value;
   const dollarChange = currentValue - initialValue;
   const percentChange = ((currentValue - initialValue) / initialValue) * 100;
@@ -429,9 +425,31 @@ function updateStatsForVisibleRange() {
   if (!chart) return;
 
   const { min: start, max: end } = chart.scales.x;
-  const visibleData = currentData[
-    document.getElementById("bundleSelect").value
-  ].filter((item) => item.timestamp >= start && item.timestamp <= end);
+  const bundleId = document.getElementById("bundleSelect").value;
+  const data = currentData[bundleId];
+
+  if (!data || data.length === 0) return;
+
+  // Find the first visible data point
+  let firstVisibleIndex = data.findIndex((item) => item.timestamp >= start);
+  if (firstVisibleIndex === -1) firstVisibleIndex = 0;
+
+  // Find the last visible data point
+  let lastVisibleIndex = data.length - 1;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].timestamp <= end) {
+      lastVisibleIndex = i;
+      break;
+    }
+  }
+
+  // Create a subset of data that includes the visible range
+  const visibleData = [
+    // Always include the first data point for correct change calculation
+    data[0],
+    // Include visible range
+    ...data.slice(firstVisibleIndex, lastVisibleIndex + 1),
+  ];
 
   updateStats(visibleData);
 }
