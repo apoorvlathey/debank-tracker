@@ -506,6 +506,24 @@ function updateStatsForVisibleRange() {
   updateLastUpdatedLink(bundleId);
 }
 
+function applyHideStatus(hideStatus) {
+  const currentValueEl = document.getElementById("currentValue");
+  const percentChangeEl = document.getElementById("percentChange");
+  const hideBtn = document.getElementById("hideBtn");
+
+  // Update UI elements
+  currentValueEl.style.filter = hideStatus ? "blur(20px)" : "none";
+  percentChangeEl.style.filter = hideStatus ? "blur(20px)" : "none";
+  hideBtn.textContent = hideStatus ? "unhide" : "hide";
+
+  // Update chart if it exists
+  if (chart) {
+    chart.options.scales.y.ticks.display = !hideStatus;
+    chart.options.plugins.tooltip.enabled = !hideStatus;
+    chart.update();
+  }
+}
+
 function updateChart() {
   const bundleId = document.getElementById("bundleSelect").value;
   const timeScale = document.getElementById("timeScale").value;
@@ -519,6 +537,12 @@ function updateChart() {
     updateLastUpdatedTime(data);
     updateLastUpdatedLink(bundleId);
     startLastUpdatedInterval(); // Start the interval when chart is updated
+
+    // Apply hide status if it exists
+    chrome.storage.local.get(["hideStatus"], (result) => {
+      const hideStatus = result.hideStatus || false;
+      applyHideStatus(hideStatus);
+    });
   } else {
     // Reset stats if no data
     updateStats([]);
@@ -742,8 +766,15 @@ document.getElementById("cancelBtn").addEventListener("click", () => {
   document.getElementById("confirmModal").style.display = "none";
 });
 
-// Load initial data
-chrome.storage.local.get(["portfolioHistory"], (result) => {
+document.getElementById("hideBtn").addEventListener("click", () => {
+  const hideBtn = document.getElementById("hideBtn");
+  const newHideStatus = hideBtn.textContent === "hide";
+
+  applyHideStatus(newHideStatus);
+  chrome.storage.local.set({ hideStatus: newHideStatus });
+});
+
+chrome.storage.local.get(["portfolioHistory", "hideStatus"], (result) => {
   const portfolioHistory = result.portfolioHistory || {};
   updateBundleSelect(portfolioHistory);
 
@@ -751,6 +782,48 @@ chrome.storage.local.get(["portfolioHistory"], (result) => {
   const bundleId = document.getElementById("bundleSelect").value;
   if (portfolioHistory[bundleId]) {
     startLastUpdatedInterval();
+  }
+
+  // Apply hide status if it exists
+  const hideStatus = result.hideStatus || false;
+  applyHideStatus(hideStatus);
+});
+
+// Load initial data
+chrome.storage.local.get(["portfolioHistory", "hideStatus"], (result) => {
+  const portfolioHistory = result.portfolioHistory || {};
+  updateBundleSelect(portfolioHistory);
+
+  // Start the interval if there's data
+  const bundleId = document.getElementById("bundleSelect").value;
+  if (portfolioHistory[bundleId]) {
+    startLastUpdatedInterval();
+  }
+
+  // Apply hide status if it exists
+  const hideStatus = result.hideStatus || false;
+  const currentValueEl = document.getElementById("currentValue");
+  const percentChangeEl = document.getElementById("percentChange");
+  const hideBtn = document.getElementById("hideBtn");
+
+  if (hideStatus) {
+    currentValueEl.style.filter = "blur(20px)";
+    percentChangeEl.style.filter = "blur(20px)";
+    hideBtn.textContent = "unhide";
+    if (chart) {
+      chart.options.scales.y.ticks.display = false;
+      chart.options.plugins.tooltip.enabled = false;
+      chart.update();
+    }
+  } else {
+    currentValueEl.style.filter = "none";
+    percentChangeEl.style.filter = "none";
+    hideBtn.textContent = "hide";
+    if (chart) {
+      chart.options.scales.y.ticks.display = true;
+      chart.options.plugins.tooltip.enabled = true;
+      chart.update();
+    }
   }
 });
 
