@@ -1,3 +1,4 @@
+// Global Variables
 let chart = null;
 let currentData = {};
 let isDraggingYAxis = false;
@@ -5,7 +6,8 @@ let dragStartY = 0;
 let initialZoom = null;
 let initialBounds = null;
 
-// Helper function to aggregate data based on time scale
+// Helper Functions
+// Aggregate data based on time scale
 function aggregateData(data, timeScale) {
   const aggregated = new Map();
 
@@ -87,6 +89,69 @@ function formatDate(timestamp, timeScale) {
   }
 }
 
+function formatTimeElapsed(startTimestamp, endTimestamp) {
+  const elapsedMs = endTimestamp - startTimestamp;
+  const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  const elapsedDays = Math.floor(elapsedHours / 24);
+
+  if (elapsedDays > 0) {
+    return `${elapsedDays} day${elapsedDays > 1 ? "s" : ""}`;
+  } else if (elapsedHours > 0) {
+    return `${elapsedHours} hour${elapsedHours > 1 ? "s" : ""}`;
+  } else {
+    return `${elapsedMinutes} minute${elapsedMinutes > 1 ? "s" : ""}`;
+  }
+}
+
+function calculateChanges(data) {
+  if (!data || data.length === 0) {
+    return {
+      dollarChange: 0,
+      percentChange: 0,
+      currentValue: 0,
+      timeElapsed: 0,
+    };
+  }
+
+  const currentValue = data[data.length - 1].value;
+  const initialValue = data[0].value;
+  const dollarChange = data.length > 1 ? currentValue - initialValue : 0;
+  const percentChange =
+    data.length > 1 ? ((currentValue - initialValue) / initialValue) * 100 : 0;
+  const timeElapsed =
+    data.length > 1
+      ? formatTimeElapsed(data[0].timestamp, data[data.length - 1].timestamp)
+      : 0;
+
+  return {
+    dollarChange,
+    percentChange,
+    currentValue,
+    timeElapsed,
+  };
+}
+
+function formatCurrency(value) {
+  const prefix = value >= 0 ? "$" : "-$";
+  return `${prefix}${Math.abs(value).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatPercentage(value) {
+  const prefix = value >= 0 ? "+" : "";
+  return `${prefix}${value.toFixed(2)}%`;
+}
+
+function getChangeClass(value) {
+  if (value > 0) return "positive-change";
+  if (value < 0) return "negative-change";
+  return "no-change";
+}
+
+// Chart Functions
 function createChart(data, timeScale) {
   const ctx = document.getElementById("valueChart").getContext("2d");
   const canvas = document.getElementById("valueChart");
@@ -345,68 +410,7 @@ function createChart(data, timeScale) {
   });
 }
 
-function formatTimeElapsed(startTimestamp, endTimestamp) {
-  const elapsedMs = endTimestamp - startTimestamp;
-  const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  const elapsedDays = Math.floor(elapsedHours / 24);
-
-  if (elapsedDays > 0) {
-    return `${elapsedDays} day${elapsedDays > 1 ? "s" : ""}`;
-  } else if (elapsedHours > 0) {
-    return `${elapsedHours} hour${elapsedHours > 1 ? "s" : ""}`;
-  } else {
-    return `${elapsedMinutes} minute${elapsedMinutes > 1 ? "s" : ""}`;
-  }
-}
-
-function calculateChanges(data) {
-  if (!data || data.length === 0) {
-    return {
-      dollarChange: 0,
-      percentChange: 0,
-      currentValue: 0,
-      timeElapsed: 0,
-    };
-  }
-
-  const currentValue = data[data.length - 1].value;
-  const initialValue = data[0].value;
-  const dollarChange = data.length > 1 ? currentValue - initialValue : 0;
-  const percentChange =
-    data.length > 1 ? ((currentValue - initialValue) / initialValue) * 100 : 0;
-  const timeElapsed =
-    data.length > 1
-      ? formatTimeElapsed(data[0].timestamp, data[data.length - 1].timestamp)
-      : 0;
-
-  return {
-    dollarChange,
-    percentChange,
-    currentValue,
-    timeElapsed,
-  };
-}
-
-function formatCurrency(value) {
-  const prefix = value >= 0 ? "$" : "-$";
-  return `${prefix}${Math.abs(value).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function formatPercentage(value) {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}${value.toFixed(2)}%`;
-}
-
-function getChangeClass(value) {
-  if (value > 0) return "positive-change";
-  if (value < 0) return "negative-change";
-  return "no-change";
-}
-
+// Update Functions
 function updateStats(data) {
   const stats = calculateChanges(data);
 
@@ -461,6 +465,54 @@ function updateStatsForVisibleRange() {
   ];
 
   updateStats(visibleData);
+}
+
+function updateChart() {
+  const bundleId = document.getElementById("bundleSelect").value;
+  const timeScale = document.getElementById("timeScale").value;
+  const data = currentData[bundleId];
+
+  // Store the last selected bundle in local storage
+  chrome.storage.local.set({ lastSelectedBundle: bundleId });
+
+  if (data && data.length > 0) {
+    createChart(data, timeScale);
+  } else {
+    // Reset stats if no data
+    updateStats([]);
+    if (chart) {
+      chart.destroy();
+      chart = null;
+    }
+  }
+}
+
+function resetZoom() {
+  if (chart && initialBounds) {
+    // Reset the scales to their original state
+    chart.resetZoom();
+
+    // Reset to initial bounds for Y axis
+    chart.scales.y.options.min = initialBounds.min;
+    chart.scales.y.options.max = initialBounds.max;
+
+    // Reset the pan and zoom state
+    isDraggingYAxis = false;
+    initialZoom = null;
+
+    // Instead of using updateStatsForVisibleRange, use the original data
+    const bundleId = document.getElementById("bundleSelect").value;
+    const data = currentData[bundleId];
+    if (data && data.length > 0) {
+      // Use the aggregated data that matches current timeScale
+      const timeScale = document.getElementById("timeScale").value;
+      const aggregatedData = aggregateData(data, timeScale);
+      updateStats(aggregatedData);
+    }
+
+    // Update the chart with animation disabled
+    chart.update("none");
+  }
 }
 
 function updateBundleSelect(portfolioHistory) {
@@ -565,54 +617,6 @@ function clearData() {
       document.getElementById("confirmModal").style.display = "none";
     });
   });
-}
-
-function resetZoom() {
-  if (chart && initialBounds) {
-    // Reset the scales to their original state
-    chart.resetZoom();
-
-    // Reset to initial bounds for Y axis
-    chart.scales.y.options.min = initialBounds.min;
-    chart.scales.y.options.max = initialBounds.max;
-
-    // Reset the pan and zoom state
-    isDraggingYAxis = false;
-    initialZoom = null;
-
-    // Instead of using updateStatsForVisibleRange, use the original data
-    const bundleId = document.getElementById("bundleSelect").value;
-    const data = currentData[bundleId];
-    if (data && data.length > 0) {
-      // Use the aggregated data that matches current timeScale
-      const timeScale = document.getElementById("timeScale").value;
-      const aggregatedData = aggregateData(data, timeScale);
-      updateStats(aggregatedData);
-    }
-
-    // Update the chart with animation disabled
-    chart.update("none");
-  }
-}
-
-function updateChart() {
-  const bundleId = document.getElementById("bundleSelect").value;
-  const timeScale = document.getElementById("timeScale").value;
-  const data = currentData[bundleId];
-
-  // Store the last selected bundle in local storage
-  chrome.storage.local.set({ lastSelectedBundle: bundleId });
-
-  if (data && data.length > 0) {
-    createChart(data, timeScale);
-  } else {
-    // Reset stats if no data
-    updateStats([]);
-    if (chart) {
-      chart.destroy();
-      chart = null;
-    }
-  }
 }
 
 // Event Listeners
