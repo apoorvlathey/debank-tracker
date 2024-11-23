@@ -434,6 +434,28 @@ function updateStats(data) {
     "stat-value " + getChangeClass(stats.percentChange);
 }
 
+function updateLastUpdatedTime(data) {
+  if (!data || data.length === 0) {
+    document.getElementById("lastUpdated").textContent =
+      "Last updated: No data yet";
+    return;
+  }
+
+  const latestTimestamp = new Date(data[data.length - 1].timestamp).getTime(); // Parse timestamp string to Date object
+  const now = Date.now();
+  const timeElapsed = formatTimeElapsed(latestTimestamp, now);
+
+  document.getElementById(
+    "lastUpdated"
+  ).textContent = `Last updated: ${timeElapsed} ago`;
+}
+
+function updateLastUpdatedLink(bundleId) {
+  const linkElement = document.getElementById("lastUpdatedLink");
+  linkElement.href = `https://debank.com/bundles/${bundleId}/accounts`;
+}
+
+// Modify updateStatsForVisibleRange to call updateLastUpdatedTime
 function updateStatsForVisibleRange() {
   if (!chart) return;
 
@@ -465,8 +487,11 @@ function updateStatsForVisibleRange() {
   ];
 
   updateStats(visibleData);
+  updateLastUpdatedTime(data);
+  updateLastUpdatedLink(bundleId);
 }
 
+// Modify updateChart to call updateLastUpdatedTime
 function updateChart() {
   const bundleId = document.getElementById("bundleSelect").value;
   const timeScale = document.getElementById("timeScale").value;
@@ -477,9 +502,13 @@ function updateChart() {
 
   if (data && data.length > 0) {
     createChart(data, timeScale);
+    updateLastUpdatedTime(data);
+    updateLastUpdatedLink(bundleId);
   } else {
     // Reset stats if no data
     updateStats([]);
+    document.getElementById("lastUpdated").textContent =
+      "Last updated: No data yet";
     if (chart) {
       chart.destroy();
       chart = null;
@@ -550,6 +579,7 @@ function updateBundleSelect(portfolioHistory) {
     timeScale.disabled = false;
     downloadBtn.disabled = false;
     resetZoom.disabled = false;
+    updateLastUpdatedLink(bundleSelect.value);
   } else {
     // Disable controls if no data
     bundleSelect.disabled = true;
