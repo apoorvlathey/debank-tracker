@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Debank Portfolio History</title>
+    <title>Debank Historic Tracker</title>
     <script src="chart.min.js"></script>
     <script src="hammer.min.js"></script>
     <script src="chartjs-plugin-zoom.min.js"></script>
@@ -267,10 +267,25 @@
       .no-change {
         color: var(--text-primary);
       }
+
+      .time-elapsed {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
     </style>
   </head>
   <body>
-    <h1>Debank Portfolio History</h1>
+    <h1>Debank Historic Tracker</h1>
+    <p>
+      Snapshot taken each time you check your
+      <a
+        href="https://debank.com/bundles"
+        target="_blank"
+        style="color: #a0a0a0; text-decoration: underline"
+        >Debank bundle</a
+      >
+      and plots a graph...
+    </p>
     <div class="controls">
       <select id="bundleSelect"></select>
       <select id="timeScale">
@@ -334,17 +349,5 @@
     </footer>
 
     <script src="history.js"></script>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const timeScale = document.getElementById("timeScale");
-        const timeFrame = timeScale.options[timeScale.selectedIndex].text;
-        document.querySelector(
-          ".stat-label:nth-child(2)"
-        ).innerText = `Change ($) [${timeFrame}]`;
-        document.querySelector(
-          ".stat-label:nth-child(3)"
-        ).innerText = `Change (%) [${timeFrame}]`;
-      });
-    </script>
   </body>
 </html>

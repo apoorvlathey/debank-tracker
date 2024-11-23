@@ -124,7 +124,7 @@ function createChart(data, timeScale) {
           data: aggregatedData.map((item) => item.value),
           borderColor: "#4CAF50",
           tension: 0.1,
-          pointRadius: 0,
+          pointRadius: aggregatedData.length === 1 ? 5 : 0, // Ensure single point is visible
           pointHitRadius: 10,
           borderWidth: 2,
         },
@@ -204,6 +204,11 @@ function createChart(data, timeScale) {
               const percentChange =
                 ((currentValue - startValue) / startValue) * 100;
 
+              const timeElapsed = formatTimeElapsed(
+                aggregatedData[0].timestamp,
+                aggregatedData[context.dataIndex].timestamp
+              );
+
               return [
                 "Value: " + formatCurrency(currentValue),
                 "Change: " +
@@ -211,6 +216,7 @@ function createChart(data, timeScale) {
                   " (" +
                   formatPercentage(percentChange) +
                   ")",
+                "Time: " + timeElapsed,
               ];
             },
             labelTextColor: (tooltipItem) => {
@@ -367,21 +373,46 @@ function createChart(data, timeScale) {
   });
 }
 
+function formatTimeElapsed(startTimestamp, endTimestamp) {
+  const elapsedMs = endTimestamp - startTimestamp;
+  const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  const elapsedDays = Math.floor(elapsedHours / 24);
+
+  if (elapsedDays > 0) {
+    return `${elapsedDays} day${elapsedDays > 1 ? "s" : ""}`;
+  } else if (elapsedHours > 0) {
+    return `${elapsedHours} hour${elapsedHours > 1 ? "s" : ""}`;
+  } else {
+    return `${elapsedMinutes} minute${elapsedMinutes > 1 ? "s" : ""}`;
+  }
+}
+
 function calculateChanges(data) {
-  if (!data || data.length < 2) {
-    return { dollarChange: 0, percentChange: 0, currentValue: 0 };
+  if (!data || data.length === 0) {
+    return {
+      dollarChange: 0,
+      percentChange: 0,
+      currentValue: 0,
+      timeElapsed: 0,
+    };
   }
 
   const currentValue = data[data.length - 1].value;
-  // Always use the first data point in the entire dataset for reference
   const initialValue = data[0].value;
-  const dollarChange = currentValue - initialValue;
-  const percentChange = ((currentValue - initialValue) / initialValue) * 100;
+  const dollarChange = data.length > 1 ? currentValue - initialValue : 0;
+  const percentChange =
+    data.length > 1 ? ((currentValue - initialValue) / initialValue) * 100 : 0;
+  const timeElapsed =
+    data.length > 1
+      ? formatTimeElapsed(data[0].timestamp, data[data.length - 1].timestamp)
+      : 0;
 
   return {
     dollarChange,
     percentChange,
     currentValue,
+    timeElapsed,
   };
 }
 
@@ -412,11 +443,17 @@ function updateStats(data) {
   );
 
   const dollarChangeEl = document.getElementById("dollarChange");
-  dollarChangeEl.textContent = formatCurrency(stats.dollarChange);
+  dollarChangeEl.innerHTML = `${formatCurrency(stats.dollarChange)}`;
+  if (stats.timeElapsed.toString() !== "0") {
+    dollarChangeEl.innerHTML += ` <span class="time-elapsed">[${stats.timeElapsed}]</span>`;
+  }
   dollarChangeEl.className = "stat-value " + getChangeClass(stats.dollarChange);
 
   const percentChangeEl = document.getElementById("percentChange");
-  percentChangeEl.textContent = formatPercentage(stats.percentChange);
+  percentChangeEl.innerHTML = `${formatPercentage(stats.percentChange)}`;
+  if (stats.timeElapsed.toString() !== "0") {
+    percentChangeEl.innerHTML += ` <span class="time-elapsed">[${stats.timeElapsed}]</span>`;
+  }
   percentChangeEl.className =
     "stat-value " + getChangeClass(stats.percentChange);
 }
@@ -473,13 +510,22 @@ function updateBundleSelect(portfolioHistory) {
       bundleSelect.appendChild(option);
     });
 
+    // Restore the last selected bundle if it exists
+    chrome.storage.local.get(["lastSelectedBundle"], (result) => {
+      if (
+        result.lastSelectedBundle &&
+        portfolioHistory[result.lastSelectedBundle]
+      ) {
+        bundleSelect.value = result.lastSelectedBundle;
+      }
+      updateChart();
+    });
+
     // Enable controls if we have data
     bundleSelect.disabled = false;
     timeScale.disabled = false;
     downloadBtn.disabled = false;
     resetZoom.disabled = false;
-
-    updateChart();
   } else {
     // Disable controls if no data
     bundleSelect.disabled = true;
@@ -564,6 +610,9 @@ function updateChart() {
   const timeScale = document.getElementById("timeScale").value;
   const data = currentData[bundleId];
 
+  // Store the last selected bundle in local storage
+  chrome.storage.local.set({ lastSelectedBundle: bundleId });
+
   if (data && data.length > 0) {
     createChart(data, timeScale);
   } else {
@@ -603,7 +652,7 @@ chrome.storage.local.get(["portfolioHistory"], (result) => {
   updateBundleSelect(portfolioHistory);
 });
 
-// Listen for changes to the portfolio history and update the chart
+// Listen for changes for new entry to the storage and update the chart
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === "local" && changes.portfolioHistory) {
     // Get the new value from the changes object
