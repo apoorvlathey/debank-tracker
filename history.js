@@ -518,10 +518,17 @@ function applyHideStatus(hideStatus) {
   currentValueEl.style.filter = hideStatus ? "blur(20px)" : "none";
   dollarChangeEl.style.filter = hideStatus ? "blur(20px)" : "none";
   hideBtn.textContent = hideStatus ? "unhide" : "hide";
+  hideBtn.style.backgroundColor = hideStatus ? "#d32f2f" : "#1976d2";
 
   // Show/hide the additional hide buttons
   hideDollarBtn.style.display = hideStatus ? "block" : "none";
   hidePercentBtn.style.display = hideStatus ? "block" : "none";
+
+  // Reset percent change visibility when unhiding
+  if (!hideStatus) {
+    percentChangeEl.style.filter = "none";
+    hidePercentBtn.textContent = "hide";
+  }
 
   // Update chart if it exists
   if (chart) {
