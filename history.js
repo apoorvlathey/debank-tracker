@@ -508,13 +508,20 @@ function updateStatsForVisibleRange() {
 
 function applyHideStatus(hideStatus) {
   const currentValueEl = document.getElementById("currentValue");
+  const dollarChangeEl = document.getElementById("dollarChange");
   const percentChangeEl = document.getElementById("percentChange");
   const hideBtn = document.getElementById("hideBtn");
+  const hideDollarBtn = document.getElementById("hideDollarBtn");
+  const hidePercentBtn = document.getElementById("hidePercentBtn");
 
   // Update UI elements
   currentValueEl.style.filter = hideStatus ? "blur(20px)" : "none";
-  percentChangeEl.style.filter = hideStatus ? "blur(20px)" : "none";
+  dollarChangeEl.style.filter = hideStatus ? "blur(20px)" : "none";
   hideBtn.textContent = hideStatus ? "unhide" : "hide";
+
+  // Show/hide the additional hide buttons
+  hideDollarBtn.style.display = hideStatus ? "block" : "none";
+  hidePercentBtn.style.display = hideStatus ? "block" : "none";
 
   // Update chart if it exists
   if (chart) {
@@ -787,6 +794,24 @@ document.getElementById("hideBtn").addEventListener("click", () => {
 
   applyHideStatus(newHideStatus);
   chrome.storage.local.set({ hideStatus: newHideStatus });
+});
+
+document.getElementById("hideDollarBtn").addEventListener("click", () => {
+  const dollarChangeEl = document.getElementById("dollarChange");
+  const hideDollarBtn = document.getElementById("hideDollarBtn");
+
+  const isHidden = hideDollarBtn.textContent === "hide";
+  dollarChangeEl.style.filter = isHidden ? "blur(20px)" : "none";
+  hideDollarBtn.textContent = isHidden ? "unhide" : "hide";
+});
+
+document.getElementById("hidePercentBtn").addEventListener("click", () => {
+  const percentChangeEl = document.getElementById("percentChange");
+  const hidePercentBtn = document.getElementById("hidePercentBtn");
+
+  const isHidden = hidePercentBtn.textContent === "hide";
+  percentChangeEl.style.filter = isHidden ? "blur(20px)" : "none";
+  hidePercentBtn.textContent = isHidden ? "unhide" : "hide";
 });
 
 chrome.storage.local.get(["portfolioHistory", "hideStatus"], (result) => {

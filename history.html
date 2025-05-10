@@ -357,11 +357,59 @@
         <div class="stat-value" id="currentValue">$0.00</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Change ($)</div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+          "
+        >
+          <div class="stat-label">Change ($)</div>
+          <button
+            id="hideDollarBtn"
+            style="
+              padding: 4px 8px;
+              font-size: 12px;
+              background-color: var(--button-background);
+              color: var(--button-text);
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              display: none;
+            "
+          >
+            unhide
+          </button>
+        </div>
         <div class="stat-value" id="dollarChange">$0.00</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Change (%)</div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+          "
+        >
+          <div class="stat-label">Change (%)</div>
+          <button
+            id="hidePercentBtn"
+            style="
+              padding: 4px 8px;
+              font-size: 12px;
+              background-color: var(--button-background);
+              color: var(--button-text);
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              display: none;
+            "
+          >
+            hide
+          </button>
+        </div>
         <div class="stat-value" id="percentChange">0.00%</div>
       </div>
     </div>
